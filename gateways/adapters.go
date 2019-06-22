@@ -19,13 +19,30 @@ func AdapterFutureOrder(contract IContract, order *goex.FutureOrder) (o *Order) 
 	o.Amount = order.Amount
 	o.AvgPrice = order.AvgPrice
 	o.DealAmount = order.DealAmount
-	o.CreateTime = Int64ToTime(order.OrderTime)
+	o.UpdateTime = Int64ToTime(order.OrderTime)
 	o.Status = NewTradeStatusFromGoex(order.Status)
 	o.Offset = NewOrderOffsetFromGoex(order.OType)
 	// TODO: o.Type =
 	o.LeverRate = order.LeverRate
 	o.Fee = order.Fee
 	return
+}
+
+func AdapterFutureKlines(contract IContract, klines []goex.FutureKline) (a []Bar) {
+	bars := make([]Bar, 0, len(klines))
+	bar := Bar{}
+	for _, kline := range klines {
+		bar.Contract = contract
+		bar.Timestamp = Int64ToTime(kline.Timestamp)
+		bar.Open = kline.Open
+		bar.High = kline.High
+		bar.Low = kline.Low
+		bar.Close = kline.Close
+		bar.Vol = kline.Vol
+		bar.Vol2 = kline.Vol2
+		bars = append(bars, bar)
+	}
+	return bars
 }
 
 func AdapterDepth(contract IContract, depth *goex.Depth) (d *Depth) {

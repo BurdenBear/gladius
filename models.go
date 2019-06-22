@@ -11,6 +11,17 @@ type Ticker struct {
 	Contract IContract
 }
 
+type Bar struct {
+	Contract  IContract
+	Timestamp time.Time
+	Open      float64
+	High      float64
+	Low       float64
+	Close     float64
+	Vol       float64 //交易量(美元本位)
+	Vol2      float64 //交易量(币本位)
+}
+
 type Order struct {
 	OrderID       string //请尽量用这个字段替代OrderID字段
 	ClientOrderID string //客户端自定义ID
@@ -19,6 +30,7 @@ type Order struct {
 	AvgPrice      float64
 	DealAmount    float64
 	CreateTime    time.Time
+	UpdateTime    time.Time
 	Status        OrderStatus
 	Contract      IContract
 	Offset        OrderOffset //1：开多 2：平多 3：开空 4： 平空

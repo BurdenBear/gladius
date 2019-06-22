@@ -23,17 +23,22 @@ func TestOKExGatewayDepth(t *testing.T) {
 	config.APISecretKey = ""
 	config.APIPassphrase = ""
 	config.Symbols = symbols
-	okex := NewOkexGateway("OKEX", engine).Config(&config)
-	wg := &sync.WaitGroup{}
-	wg.Add(10)
+	okex := NewOkexGateway("OKEX", engine)
+	okex.SetConfig(&config)
+	wait := 10
+	ch := make(chan interface{}, wait)
 	engine.Register(EVENT_DEPTH, NewDepthEventHandler(
 		func(depth *Depth) {
-			wg.Done()
+			ch <- nil
 			t.Log(depth.Contract, depth.Time, depth.AskList, depth.BidList)
 		}))
 	engine.Start()
-	okex.Connect()
-	wg.Wait()
+	err := okex.Connect()
+	assert.Nil(t, err)
+	for i := 0; i < wait; i++ {
+		<-ch
+	}
+	// time.Sleep(3 * time.Second)
 }
 
 func placeAndCancel(t *testing.T, gateway *OkexGateway, dep *Depth) {
@@ -65,9 +70,10 @@ func TestOKExGatewayOrder(t *testing.T) {
 	}
 	config := *GetDefaultOkexGatewayConfig() // copy
 	config.Symbols = symbols
-	okex := NewOkexGateway("OKEX", engine).Config(&config)
-	wg := &sync.WaitGroup{}
-	wg.Add(6) // (SUBMITTED, UNFINISHED, CANCELLED) X 2 contract
+	okex := NewOkexGateway("OKEX", engine)
+	okex.SetConfig(&config)
+	wait := 6 // (SUBMITTED, UNFINISHED, CANCELLED) X 2 contract
+	ch := make(chan interface{}, wait)
 	engine.Register(EVENT_DEPTH, NewDepthEventHandler(
 		func(depth *Depth) {
 			symbol := depth.Contract.GetSymbol()
@@ -78,10 +84,13 @@ func TestOKExGatewayOrder(t *testing.T) {
 		}))
 	engine.Register(EVENT_ORDER, NewOrderEventHandler(
 		func(order *Order) {
-			wg.Done()
+			ch <- nil
 			log.Debugf("%v %v", order.Contract, order)
 		}))
 	engine.Start()
-	okex.Connect()
-	wg.Wait()
+	err := okex.Connect()
+	assert.Nil(t, err)
+	for i := 0; i < wait; i++ {
+		<-ch
+	}
 }
