@@ -13,19 +13,10 @@ import (
 
 var log = GetLogger()
 
-type BaseHTTPConfig struct {
-	HTTPTimeout time.Duration
-	HTTPProxy   string
-}
-
 type OkexGatewayConfig struct {
-	*BaseHTTPConfig
-	RestfulURL    string
-	WebSocketURL  string
-	APIKey        string
-	APISecretKey  string
-	APIPassphrase string
-	Symbols       []string
+	*gateways.GoExGatewayConfig
+	RestfulURL   string
+	WebSocketURL string
 }
 
 func GetDefaultOkexGatewayConfig() *OkexGatewayConfig {
@@ -35,29 +26,15 @@ func GetDefaultOkexGatewayConfig() *OkexGatewayConfig {
 	restfulURL := gateways.GetEnv("GOEX_OKEX_RESTFUL_URL", "")
 	websocketURL := gateways.GetEnv("GOEX_OKEX_WEBSOCKET_URL", "")
 	config := &OkexGatewayConfig{
-		RestfulURL:    restfulURL,
-		WebSocketURL:  websocketURL,
-		APIKey:        apiKey,
-		APISecretKey:  apiSecretKey,
-		APIPassphrase: passphrase,
+		RestfulURL:   restfulURL,
+		WebSocketURL: websocketURL,
+		GoExGatewayConfig: &gateways.GoExGatewayConfig{
+			APIKey:        apiKey,
+			APISecretKey:  apiSecretKey,
+			APIPassphrase: passphrase,
+		},
 	}
 	return config
-}
-
-type OkexGateway struct {
-	*gateways.GoExGateway
-	apiFactory *OkexAPIFactory
-}
-
-type OkexAPIFactory struct {
-	futureRestAPI   *okcoin.OKExV3
-	futureWs        *OKExV3FutureWsWrapper
-	futureAuthoried bool
-	config          *OkexGatewayConfig
-}
-
-func NewOkexAPIFactory() *OkexAPIFactory {
-	return &OkexAPIFactory{}
 }
 
 func NewOkexGateway(name string, engine *EventEngine) *OkexGateway {
@@ -65,6 +42,11 @@ func NewOkexGateway(name string, engine *EventEngine) *OkexGateway {
 	gateway.apiFactory = NewOkexAPIFactory()
 	gateway.GoExGateway = gateways.NewGoExGateway(name, engine, gateway.apiFactory)
 	return gateway
+}
+
+type OkexGateway struct {
+	*gateways.GoExGateway
+	apiFactory *OkexAPIFactory
 }
 
 func (gateway *OkexGateway) GetExchange() string {
@@ -106,6 +88,17 @@ func newOKExV3(apiConfig *goex.APIConfig) *okcoin.OKExV3 {
 		apiConfig.ApiPassphrase, apiConfig.Endpoint)
 }
 
+func NewOkexAPIFactory() *OkexAPIFactory {
+	return &OkexAPIFactory{}
+}
+
+type OkexAPIFactory struct {
+	futureRestAPI   *okcoin.OKExV3
+	futureWs        *OKExV3FutureWsWrapper
+	futureAuthoried bool
+	config          *OkexGatewayConfig
+}
+
 func (factory *OkexAPIFactory) Config(gateway *gateways.GoExGateway, config interface{}) error {
 	if config == nil {
 		config = GetDefaultOkexGatewayConfig()
@@ -128,8 +121,11 @@ func (factory *OkexAPIFactory) Config(gateway *gateways.GoExGateway, config inte
 
 func (factory *OkexAPIFactory) GetFutureAPI() (gateways.ExtendedFutureRestAPI, error) {
 	apiBuilder := builder.NewAPIBuilder()
-	if factory.config.BaseHTTPConfig != nil {
-		apiBuilder.HttpTimeout(factory.config.HTTPTimeout).HttpProxy(factory.config.HTTPProxy)
+	if factory.config.HTTPTimeout != 0 {
+		apiBuilder.HttpTimeout(factory.config.HTTPTimeout)
+	}
+	if factory.config.HTTPProxy != "" {
+		apiBuilder.HttpProxy(factory.config.HTTPProxy)
 	}
 	apiKey := factory.config.APIKey
 	apiSecretKey := factory.config.APISecretKey

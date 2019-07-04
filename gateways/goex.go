@@ -42,6 +42,15 @@ type GoExAPIFactory interface {
 	GetFutureAuthoried() bool
 }
 
+type GoExGatewayConfig struct {
+	HTTPTimeout   time.Duration
+	HTTPProxy     string
+	APIKey        string
+	APISecretKey  string
+	APIPassphrase string
+	Symbols       []string
+}
+
 type GoExGateway struct {
 	//basic
 	*BaseGateway
@@ -99,12 +108,13 @@ func (gateway *GoExGateway) SetSymbols(symbols []string) *GoExGateway {
 	return gateway
 }
 
-func (gateway *GoExGateway) SetConfig(config interface{}) *GoExGateway {
+func (gateway *GoExGateway) SetConfig(config interface{}) error {
 	err := gateway.apiFactory.Config(gateway, config)
 	if err != nil {
 		log.Error(err.Error())
+		return err
 	}
-	return gateway
+	return nil
 }
 
 func (gateway *GoExGateway) SetOrderQueryInterval(t time.Duration) *GoExGateway {
@@ -221,7 +231,7 @@ func (gateway *GoExGateway) startHandleOrders() {
 }
 
 func (gateway *GoExGateway) onWsOrder(order *goex.FutureOrder, contractType string) {
-	contract, err := gateway.getContract(order.Currency, contractType)
+	contract, err := gateway.GetContract(order.Currency, contractType)
 	if err != nil {
 		log.Errorf("%s", err)
 		return // unsubscribed depth
@@ -230,7 +240,7 @@ func (gateway *GoExGateway) onWsOrder(order *goex.FutureOrder, contractType stri
 	gateway.orderCh <- o
 }
 
-func (gateway *GoExGateway) getContract(currencyPair goex.CurrencyPair, contractType string) (*CryptoCurrencyContract, error) {
+func (gateway *GoExGateway) GetContract(currencyPair goex.CurrencyPair, contractType string) (*CryptoCurrencyContract, error) {
 	key := contractsMapKey{currencyPair, contractType}
 	if c, ok := gateway.contractsMap[key]; ok {
 		return c, nil
@@ -239,7 +249,7 @@ func (gateway *GoExGateway) getContract(currencyPair goex.CurrencyPair, contract
 }
 
 func (gateway *GoExGateway) onWsDepth(depth *goex.Depth) {
-	contract, err := gateway.getContract(depth.Pair, depth.ContractType)
+	contract, err := gateway.GetContract(depth.Pair, depth.ContractType)
 	if err != nil {
 		return // unsubscribed depth
 	}
@@ -266,7 +276,7 @@ func (gateway *GoExGateway) PlaceOrder(symbol string, price, amount string, orde
 		log.Errorf("%s", err)
 		return "", err
 	}
-	contract, err := gateway.getContract(currencyPair, contractType)
+	contract, err := gateway.GetContract(currencyPair, contractType)
 	if err != nil {
 		log.Errorf("%s", err)
 		return "", err
@@ -303,7 +313,12 @@ func (gateway *GoExGateway) CancelOrder(symbol string, orderID string) {
 	if err != nil {
 		log.Errorf("%s", err)
 	}
-	go gateway.futureRestAPI.FutureCancelOrder(currencyPair, contractType, orderID)
+	go func() {
+		_, err := gateway.futureRestAPI.FutureCancelOrder(currencyPair, contractType, orderID)
+		if err != nil {
+			log.Errorf("%s", err)
+		}
+	}()
 }
 
 func (gateway *GoExGateway) GetCandles(symbol string, period, size int) ([]Bar, error) {
@@ -311,7 +326,7 @@ func (gateway *GoExGateway) GetCandles(symbol string, period, size int) ([]Bar, 
 	if err != nil {
 		log.Error(err.Error())
 	}
-	contract, err := gateway.getContract(currencyPair, contractType)
+	contract, err := gateway.GetContract(currencyPair, contractType)
 	if err != nil {
 		log.Error(err.Error())
 	}

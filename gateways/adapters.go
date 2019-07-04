@@ -7,6 +7,14 @@ import (
 	goex "github.com/nntaoli-project/GoEx"
 )
 
+func TimeStringToInt64(s string) (int64, error) {
+	t, err := time.Parse(s, time.RFC3339)
+	if err != nil {
+		return 0, err
+	}
+	return t.UTC().UnixNano() / int64(time.Millisecond), nil
+}
+
 func Int64ToTime(ti int64) time.Time {
 	return time.Unix(0, ti*int64(time.Millisecond)).UTC()
 }
@@ -33,7 +41,7 @@ func AdapterFutureKlines(contract IContract, klines []goex.FutureKline) (a []Bar
 	bar := Bar{}
 	for _, kline := range klines {
 		bar.Contract = contract
-		bar.Timestamp = Int64ToTime(kline.Timestamp)
+		bar.Timestamp = Int64ToTime(kline.Timestamp * 1000) //kline.Timestamp is seconds
 		bar.Open = kline.Open
 		bar.High = kline.High
 		bar.Low = kline.Low

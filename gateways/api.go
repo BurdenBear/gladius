@@ -1,6 +1,8 @@
 package gateways
 
-import goex "github.com/nntaoli-project/GoEx"
+import (
+	goex "github.com/nntaoli-project/GoEx"
+)
 
 type ExtendedFutureRestAPI interface {
 	goex.FutureRestAPI

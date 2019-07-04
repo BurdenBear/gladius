@@ -67,3 +67,13 @@ func ParseCryptoCurrencyContractSymbol(symbol string) (goex.CurrencyPair, string
 	}
 	return goex.UNKNOWN_PAIR, "", fmt.Errorf("unknown crypto currency contract: %s", symbol)
 }
+
+func ParseContractID(id string) (gatewayName, symbol string, err error) {
+	parts := strings.Split(id, FDTRADER_SEPERATOR)
+	if len(parts) >= 2 {
+		gatewayName = parts[0]
+		symbol = strings.Join(parts[1:], FDTRADER_SEPERATOR)
+		return gatewayName, symbol, nil
+	}
+	return gatewayName, symbol, fmt.Errorf("invalid contract id: %s", id)
+}
