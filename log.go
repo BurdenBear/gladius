@@ -6,19 +6,19 @@ import (
 	"github.com/op/go-logging"
 )
 
-var log = logging.MustGetLogger("fdtrader")
+var logger = logging.MustGetLogger("fdtrader")
 
 func init() {
 	InitLog(logging.DEBUG, "")
 }
 
 func GetLogger() *logging.Logger {
-	return log
+	return logger
 }
 
 func InitLog(level logging.Level, filename string) {
 	var format = logging.MustStringFormatter(
-		`%{time:2001/02/03 15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{message}`,
+		`%{time:2006/01/02 15:04:05.000} %{shortfile} %{shortfunc} [%{level:.4s}] %{message}`,
 	)
 	backends := []logging.Backend{}
 	backend := logging.NewLogBackend(os.Stderr, "", 0)

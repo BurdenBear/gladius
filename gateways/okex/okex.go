@@ -1,6 +1,7 @@
 package okex
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -11,12 +12,26 @@ import (
 	"github.com/nntaoli-project/GoEx/okcoin"
 )
 
-var log = GetLogger()
-
 type OkexGatewayConfig struct {
 	*gateways.GoExGatewayConfig
-	RestfulURL   string
-	WebSocketURL string
+}
+
+func NewOkexGatewayFromConfig(name string, engine *EventEngine, value interface{}) (gateways.IGateway, error) {
+	var config *OkexGatewayConfig
+	if c, ok := value.(*OkexGatewayConfig); ok {
+		config = c
+	} else {
+		v, err := json.Marshal(value)
+		if err != nil {
+			return nil, err
+		}
+		config = new(OkexGatewayConfig)
+		err = json.Unmarshal(v, config)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return NewOkexGateway(name, engine, config)
 }
 
 func GetDefaultOkexGatewayConfig() *OkexGatewayConfig {
@@ -26,22 +41,32 @@ func GetDefaultOkexGatewayConfig() *OkexGatewayConfig {
 	restfulURL := gateways.GetEnv("GOEX_OKEX_RESTFUL_URL", "")
 	websocketURL := gateways.GetEnv("GOEX_OKEX_WEBSOCKET_URL", "")
 	config := &OkexGatewayConfig{
-		RestfulURL:   restfulURL,
-		WebSocketURL: websocketURL,
 		GoExGatewayConfig: &gateways.GoExGatewayConfig{
-			APIKey:        apiKey,
-			APISecretKey:  apiSecretKey,
-			APIPassphrase: passphrase,
+			Secret: gateways.GoExGatewaySecretConfig{
+				APIKey:       apiKey,
+				APISecretKey: apiSecretKey,
+				Passphrase:   passphrase,
+			},
+			Urls: gateways.GoExGatewayUrlsConfig{
+				Future: gateways.GoExGatewayUrlConfig{
+					Restful:   restfulURL,
+					Websocket: websocketURL,
+				},
+			},
 		},
 	}
 	return config
 }
 
-func NewOkexGateway(name string, engine *EventEngine) *OkexGateway {
+func NewOkexGateway(name string, engine *EventEngine, config interface{}) (*OkexGateway, error) {
+	var err error
 	gateway := &OkexGateway{}
 	gateway.apiFactory = NewOkexAPIFactory()
-	gateway.GoExGateway = gateways.NewGoExGateway(name, engine, gateway.apiFactory)
-	return gateway
+	gateway.GoExGateway, err = gateways.NewGoExGateway(name, engine, gateway.apiFactory, config)
+	if err != nil {
+		return nil, err
+	}
+	return gateway, nil
 }
 
 type OkexGateway struct {
@@ -100,17 +125,17 @@ type OkexAPIFactory struct {
 }
 
 func (factory *OkexAPIFactory) Config(gateway *gateways.GoExGateway, config interface{}) error {
-	if config == nil {
-		config = GetDefaultOkexGatewayConfig()
-	}
 	c, ok := config.(*OkexGatewayConfig)
 	if !ok {
 		return fmt.Errorf("invalid config type of OkexAPIFactory: %v", config)
 	}
+	if c == nil {
+		c = GetDefaultOkexGatewayConfig()
+	}
 	factory.config = c
-	if len(factory.config.APIKey) > 0 ||
-		len(factory.config.APISecretKey) > 0 ||
-		len(factory.config.APIPassphrase) > 0 {
+	if len(factory.config.Secret.APIKey) > 0 ||
+		len(factory.config.Secret.APISecretKey) > 0 ||
+		len(factory.config.Secret.Passphrase) > 0 {
 		factory.futureAuthoried = true
 	}
 	gateway.SetSymbols(factory.config.Symbols)
@@ -121,22 +146,22 @@ func (factory *OkexAPIFactory) Config(gateway *gateways.GoExGateway, config inte
 
 func (factory *OkexAPIFactory) GetFutureAPI() (gateways.ExtendedFutureRestAPI, error) {
 	apiBuilder := builder.NewAPIBuilder()
-	if factory.config.HTTPTimeout != 0 {
-		apiBuilder.HttpTimeout(factory.config.HTTPTimeout)
+	if factory.config.HTTP.Timeout != 0 {
+		apiBuilder.HttpTimeout(time.Duration(factory.config.HTTP.Timeout) * time.Second)
 	}
-	if factory.config.HTTPProxy != "" {
-		apiBuilder.HttpProxy(factory.config.HTTPProxy)
+	if factory.config.HTTP.Proxy != "" {
+		apiBuilder.HttpProxy(factory.config.HTTP.Proxy)
 	}
-	apiKey := factory.config.APIKey
-	apiSecretKey := factory.config.APISecretKey
-	passphrase := factory.config.APIPassphrase
+	apiKey := factory.config.Secret.APIKey
+	apiSecretKey := factory.config.Secret.APISecretKey
+	passphrase := factory.config.Secret.Passphrase
 	client := apiBuilder.GetHttpClient()
 	apiConfig := &goex.APIConfig{
 		HttpClient:    client,
 		ApiKey:        apiKey,
 		ApiSecretKey:  apiSecretKey,
 		ApiPassphrase: passphrase,
-		Endpoint:      factory.config.RestfulURL,
+		Endpoint:      factory.config.Urls.Future.Restful,
 	}
 	factory.futureRestAPI = newOKExV3(apiConfig)
 	return factory.futureRestAPI, nil
@@ -144,10 +169,10 @@ func (factory *OkexAPIFactory) GetFutureAPI() (gateways.ExtendedFutureRestAPI, e
 
 func (factory *OkexAPIFactory) GetFutureWs() (gateways.FutureWebsocket, error) {
 	var fallback gateways.FutureWebsocket
-	apiKey := factory.config.APIKey
-	apiSecretKey := factory.config.APISecretKey
-	passphrase := factory.config.APIPassphrase
-	factory.futureWs = newOKExV3FutureWs(factory.config.WebSocketURL, factory.futureRestAPI)
+	apiKey := factory.config.Secret.APIKey
+	apiSecretKey := factory.config.Secret.APISecretKey
+	passphrase := factory.config.Secret.Passphrase
+	factory.futureWs = newOKExV3FutureWs(factory.config.Urls.Future.Websocket, factory.futureRestAPI)
 	if factory.futureAuthoried {
 		err := factory.futureWs.Login(apiKey, apiSecretKey, passphrase)
 		if err != nil {

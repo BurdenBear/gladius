@@ -2,7 +2,7 @@ package hbdm
 
 import (
 	"fmt"
-	_log "log"
+	"log"
 	"sync"
 	"testing"
 
@@ -96,11 +96,11 @@ func placeAndCancel(currencyPair goex.CurrencyPair, contractType string) {
 	orderID, err := hbdm.PlaceFutureOrder(
 		currencyPair, contractType, price, amount, goex.OPEN_BUY, 0, leverage)
 	if err != nil {
-		_log.Println(err)
+		log.Println(err)
 	}
 	_, err = hbdm.FutureCancelOrder(currencyPair, contractType, orderID)
 	if err != nil {
-		_log.Println(err)
+		log.Println(err)
 	}
 }
 

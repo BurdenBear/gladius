@@ -1,6 +1,7 @@
 package gladius
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/deckarep/golang-set"
@@ -11,6 +12,8 @@ type EventType int
 
 const (
 	EVENT_STOP EventType = 0 + iota
+	EVENT_REGISTER
+	EVENT_UNREGISTER
 	EVENT_ORDER
 	EVENT_TRADE
 	EVENT_ACCOUNT
@@ -18,8 +21,12 @@ const (
 	EVENT_DEPTH
 )
 
-var eventTypes = [...]string{
+var eventTypeCursor = EVENT_DEPTH
+
+var eventTypeNames = [...]string{
 	"Stop",
+	"Register",
+	"Unregister",
 	"Order",
 	"Trade",
 	"Account",
@@ -27,30 +34,59 @@ var eventTypes = [...]string{
 	"Depth",
 }
 
-func (e EventType) String() string { return eventTypes[e] }
+var eventTypeNameMap = make(map[int]string)
+
+func init() {
+	for i, v := range eventTypeNames {
+		eventTypeNameMap[i] = v
+	}
+}
+
+func AddEventType(name string) (EventType, error) {
+	exist := false
+	for _, v := range eventTypeNameMap {
+		if v == name {
+			exist = true
+			break
+		}
+	}
+	if exist {
+		return 0, fmt.Errorf("EventType (%s) has already exist", name)
+	}
+	eventTypeCursor = EventType(int(eventTypeCursor) + 1)
+	eventTypeNameMap[int(eventTypeCursor)] = name
+	return eventTypeCursor, nil
+}
+
+func (e EventType) String() string { return eventTypeNameMap[int(e)] }
 
 type Event struct {
 	Type EventType
 	Data interface{}
 }
 
-func NewEvent(_type EventType, data interface{}) Event {
-	return Event{_type, data}
+func NewEvent(_type EventType, data interface{}) *Event {
+	return &Event{_type, data}
+}
+
+type EventRegisterData struct {
+	Type    EventType
+	Handler *EventHandler
 }
 
 type EventHandler struct {
 	Type    EventType
-	handler func(Event)
+	Handler func(*Event)
 }
 
-func (handler *EventHandler) Process(event Event) {
-	handler.handler(event)
+func (handler *EventHandler) Process(event *Event) {
+	handler.Handler(event)
 }
 
 func NewStopEventHandler(handler func()) *EventHandler {
 	return &EventHandler{
 		Type: EVENT_STOP,
-		handler: func(event Event) {
+		Handler: func(event *Event) {
 			handler()
 		},
 	}
@@ -59,12 +95,12 @@ func NewStopEventHandler(handler func()) *EventHandler {
 func NewOrderEventHandler(handler func(*Order)) *EventHandler {
 	return &EventHandler{
 		Type: EVENT_ORDER,
-		handler: func(event Event) {
+		Handler: func(event *Event) {
 			data, ok := event.Data.(*Order)
 			if ok {
 				handler(data)
 			} else {
-				log.Warning("invaild data type of event")
+				logger.Warningf("invaild data type of event: %+v", event)
 			}
 		},
 	}
@@ -73,12 +109,12 @@ func NewOrderEventHandler(handler func(*Order)) *EventHandler {
 func NewTradeEventHandler(handler func(*goex.Trade)) *EventHandler {
 	return &EventHandler{
 		Type: EVENT_TRADE,
-		handler: func(event Event) {
+		Handler: func(event *Event) {
 			data, ok := event.Data.(*goex.Trade)
 			if ok {
 				handler(data)
 			} else {
-				log.Warning("invaild data type of event")
+				logger.Warningf("invaild data type of event: %+v", event)
 			}
 		},
 	}
@@ -87,12 +123,12 @@ func NewTradeEventHandler(handler func(*goex.Trade)) *EventHandler {
 func NewAccountEventHandler(handler func(*goex.Account)) *EventHandler {
 	return &EventHandler{
 		Type: EVENT_ACCOUNT,
-		handler: func(event Event) {
+		Handler: func(event *Event) {
 			data, ok := event.Data.(*goex.Account)
 			if ok {
 				handler(data)
 			} else {
-				log.Warning("invaild data type of event")
+				logger.Warningf("invaild data type of event: %+v", event)
 			}
 		},
 	}
@@ -101,12 +137,12 @@ func NewAccountEventHandler(handler func(*goex.Account)) *EventHandler {
 func NewTickerEventHandler(handler func(*Ticker)) *EventHandler {
 	return &EventHandler{
 		Type: EVENT_TICKER,
-		handler: func(event Event) {
+		Handler: func(event *Event) {
 			data, ok := event.Data.(*Ticker)
 			if ok {
 				handler(data)
 			} else {
-				log.Warning("invaild data type of event")
+				logger.Warningf("invaild data type of event: %+v", event)
 			}
 		},
 	}
@@ -115,49 +151,70 @@ func NewTickerEventHandler(handler func(*Ticker)) *EventHandler {
 func NewDepthEventHandler(handler func(*Depth)) *EventHandler {
 	return &EventHandler{
 		Type: EVENT_DEPTH,
-		handler: func(event Event) {
+		Handler: func(event *Event) {
 			data, ok := event.Data.(*Depth)
 			if ok {
 				handler(data)
 			} else {
-				log.Warning("invaild data type of event")
+				logger.Warningf("invaild data type of event: %+v", event)
 			}
 		},
 	}
 }
 
 type EventEngine struct {
-	queueSize  int
-	queue      chan Event
-	handlers   []mapset.Set
-	isRunning  bool
-	rw         *sync.RWMutex
-	rwHandlers *sync.RWMutex
-	sig        chan int
+	queueSize int
+	queue     chan *Event
+	handlers  []mapset.Set
+	isRunning bool
+	rw        *sync.RWMutex
+	sig       chan int
 }
 
 func NewEventEngine(queueSize int) *EventEngine {
 	engine := &EventEngine{}
 	engine.queueSize = queueSize
-	engine.queue = make(chan Event, queueSize)
-	engine.handlers = make([]mapset.Set, len(eventTypes))
+	engine.queue = make(chan *Event, queueSize)
+	engine.handlers = make([]mapset.Set, len(eventTypeNames))
+	handlersRegister := mapset.NewThreadUnsafeSet()
+	handlersRegister.Add(&EventHandler{
+		Type:    EVENT_REGISTER,
+		Handler: engine.OnRegister,
+	})
+	engine.handlers[int(EVENT_REGISTER)] = handlersRegister
 	engine.sig = make(chan int)
 	engine.rw = &sync.RWMutex{}
-	engine.rwHandlers = &sync.RWMutex{}
 	return engine
 }
 
-func (engine *EventEngine) Register(eventType EventType, handler *EventHandler) {
-	engine.rwHandlers.Lock()
-	defer engine.rwHandlers.Unlock()
-	if handler.Type != eventType {
-		log.Warning("register failed: inconsistent eventType")
-	} else {
-		if engine.handlers[eventType] == nil {
-			engine.handlers[eventType] = mapset.NewThreadUnsafeSet()
+func (engine *EventEngine) GetQueueSize() int {
+	return engine.queueSize
+}
+
+func (engine *EventEngine) OnRegister(event *Event) {
+	data, ok := event.Data.(*EventRegisterData)
+	if ok {
+		if data.Handler.Type != data.Type {
+			logger.Warning("register failed: inconsistent eventType")
+		} else {
+			if engine.handlers[data.Type] == nil {
+				engine.handlers[data.Type] = mapset.NewThreadUnsafeSet()
+			}
+			engine.handlers[data.Type].Add(data.Handler)
 		}
-		engine.handlers[eventType].Add(handler)
+	} else {
+		logger.Warningf("invaild data type of event: %+v", event)
 	}
+}
+
+func (engine *EventEngine) Register(eventType EventType, handler *EventHandler) {
+	engine.Process(&Event{
+		Type: EVENT_REGISTER,
+		Data: &EventRegisterData{
+			Type:    eventType,
+			Handler: handler,
+		},
+	})
 }
 
 func (engine *EventEngine) ProcessData(eventType EventType, data interface{}) {
@@ -165,9 +222,7 @@ func (engine *EventEngine) ProcessData(eventType EventType, data interface{}) {
 	engine.Push(event)
 }
 
-func (engine *EventEngine) Process(event Event) {
-	engine.rwHandlers.RLock()
-	defer engine.rwHandlers.RUnlock()
+func (engine *EventEngine) Process(event *Event) {
 	handlers := engine.handlers[event.Type]
 	if handlers != nil {
 		it := handlers.Iterator()
@@ -189,11 +244,11 @@ func (engine *EventEngine) setIsRunning(isRunning bool) {
 	engine.isRunning = isRunning
 }
 
-func (engine *EventEngine) Push(event Event) {
+func (engine *EventEngine) Push(event *Event) {
 	if engine.IsRunning() {
 		engine.queue <- event
 	} else {
-		log.Debug("EventEngine has stopped, skip push event.")
+		logger.Debug("EventEngine has stopped, skip push event.")
 	}
 }
 

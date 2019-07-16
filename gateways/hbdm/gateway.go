@@ -1,6 +1,7 @@
 package hbdm
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -10,32 +11,56 @@ import (
 	"github.com/nntaoli-project/GoEx/builder"
 )
 
-var log = GetLogger()
+var logger = GetLogger()
 
 type HbdmGatewayConfig struct {
 	*gateways.GoExGatewayConfig
 }
 
+func NewHbdmGatewayFromConfig(name string, engine *EventEngine, value interface{}) (gateways.IGateway, error) {
+	var config *HbdmGatewayConfig
+	if c, ok := value.(*HbdmGatewayConfig); ok {
+		config = c
+	} else {
+		v, err := json.Marshal(value)
+		if err != nil {
+			return nil, err
+		}
+		config = new(HbdmGatewayConfig)
+		err = json.Unmarshal(v, config)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return NewHbdmGateway(name, engine, config)
+}
+
 func GetDefaultHbdmGatewayConfig() *HbdmGatewayConfig {
-	apiKey := gateways.GetEnv("GOEX_Hbdm_API_KEY", "")
-	apiSecretKey := gateways.GetEnv("GOEX_Hbdm_API_SECRET_KEY", "")
-	passphrase := gateways.GetEnv("GOEX_Hbdm_PASSPHRASE", "")
+	apiKey := gateways.GetEnv("GOEX_HBDM_API_KEY", "")
+	apiSecretKey := gateways.GetEnv("GOEX_HBDM_API_SECRET_KEY", "")
+	passphrase := gateways.GetEnv("GOEX_HBDM_PASSPHRASE", "")
 
 	config := &HbdmGatewayConfig{
 		GoExGatewayConfig: &gateways.GoExGatewayConfig{
-			APIKey:        apiKey,
-			APISecretKey:  apiSecretKey,
-			APIPassphrase: passphrase,
+			Secret: gateways.GoExGatewaySecretConfig{
+				APIKey:       apiKey,
+				APISecretKey: apiSecretKey,
+				Passphrase:   passphrase,
+			},
 		},
 	}
 	return config
 }
 
-func NewHbdmGateway(name string, engine *EventEngine) *HbdmGateway {
+func NewHbdmGateway(name string, engine *EventEngine, config interface{}) (*HbdmGateway, error) {
+	var err error
 	gateway := &HbdmGateway{}
 	gateway.apiFactory = NewHbdmAPIFactory()
-	gateway.GoExGateway = gateways.NewGoExGateway(name, engine, gateway.apiFactory)
-	return gateway
+	gateway.GoExGateway, err = gateways.NewGoExGateway(name, engine, gateway.apiFactory, config)
+	if err != nil {
+		return nil, err
+	}
+	return gateway, nil
 }
 
 type HbdmGateway struct {
@@ -59,17 +84,17 @@ type HbdmAPIFactory struct {
 }
 
 func (factory *HbdmAPIFactory) Config(gateway *gateways.GoExGateway, config interface{}) error {
-	if config == nil {
-		config = GetDefaultHbdmGatewayConfig()
-	}
 	c, ok := config.(*HbdmGatewayConfig)
 	if !ok {
 		return fmt.Errorf("invalid config type of HbdmAPIFactory: %v", config)
 	}
+	if c == nil {
+		c = GetDefaultHbdmGatewayConfig()
+	}
 	factory.config = c
-	if len(factory.config.APIKey) > 0 ||
-		len(factory.config.APISecretKey) > 0 ||
-		len(factory.config.APIPassphrase) > 0 {
+	if len(factory.config.Secret.APIKey) > 0 ||
+		len(factory.config.Secret.APISecretKey) > 0 ||
+		len(factory.config.Secret.Passphrase) > 0 {
 		factory.futureAuthoried = true
 	}
 	gateway.SetSymbols(factory.config.Symbols)
@@ -80,15 +105,15 @@ func (factory *HbdmAPIFactory) Config(gateway *gateways.GoExGateway, config inte
 
 func (factory *HbdmAPIFactory) GetFutureAPI() (gateways.ExtendedFutureRestAPI, error) {
 	apiBuilder := builder.NewAPIBuilder()
-	if factory.config.HTTPTimeout != 0 {
-		apiBuilder.HttpTimeout(factory.config.HTTPTimeout)
+	if factory.config.HTTP.Timeout != 0 {
+		apiBuilder.HttpTimeout(time.Duration(factory.config.HTTP.Timeout) * time.Second)
 	}
-	if factory.config.HTTPProxy != "" {
-		apiBuilder.HttpProxy(factory.config.HTTPProxy)
+	if factory.config.HTTP.Proxy != "" {
+		apiBuilder.HttpProxy(factory.config.HTTP.Proxy)
 	}
-	apiKey := factory.config.APIKey
-	apiSecretKey := factory.config.APISecretKey
-	passphrase := factory.config.APIPassphrase
+	apiKey := factory.config.Secret.APIKey
+	apiSecretKey := factory.config.Secret.APISecretKey
+	passphrase := factory.config.Secret.Passphrase
 	client := apiBuilder.GetHttpClient()
 	apiConfig := &goex.APIConfig{
 		HttpClient:    client,
@@ -102,9 +127,9 @@ func (factory *HbdmAPIFactory) GetFutureAPI() (gateways.ExtendedFutureRestAPI, e
 
 func (factory *HbdmAPIFactory) GetFutureWs() (gateways.FutureWebsocket, error) {
 	var fallback gateways.FutureWebsocket
-	apiKey := factory.config.APIKey
-	apiSecretKey := factory.config.APISecretKey
-	passphrase := factory.config.APIPassphrase
+	apiKey := factory.config.Secret.APIKey
+	apiSecretKey := factory.config.Secret.APISecretKey
+	passphrase := factory.config.Secret.Passphrase
 	factory.futureWs = NewHbdmWsWrapper()
 	if factory.futureAuthoried {
 		err := factory.futureWs.Login(apiKey, apiSecretKey, passphrase)

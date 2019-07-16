@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	_log "log"
+	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -121,7 +121,7 @@ func NewHbdmOrderWs() *HbdmOrderWs {
 		WsUrl("wss://api.hbdm.com/notification").
 		Heartbeat(nil, 8*time.Second).
 		ErrorHandleFunc(func(err error) {
-			_log.Printf("hbdm order ws internal error: %s\n", err.Error())
+			log.Printf("hbdm order ws internal error: %s\n", err.Error())
 		}).
 		ReconnectIntervalTime(24 * time.Hour).
 		UnCompressFunc(goex.GzipUnCompress).
@@ -195,7 +195,7 @@ func (hbdmWs *HbdmOrderWs) handle(msg []byte) error {
 		}
 	case "sub":
 		if resp.ErrCode == 0 {
-			_log.Println("subscribed:", resp)
+			log.Println("subscribed:", resp)
 		}
 	}
 
@@ -249,14 +249,14 @@ func (hbdmWs *HbdmOrderWs) login() error {
 	case opResp := <-hbdmWs.loginCh:
 		if r, ok := opResp.(OpResponse); ok {
 			if r.ErrCode == 0 {
-				_log.Println("login success:", r)
+				log.Println("login success:", r)
 				return nil
 			}
 		}
-		_log.Println("login failed:", opResp)
+		log.Println("login failed:", opResp)
 		return fmt.Errorf("login failed: %v", opResp)
 	case <-time.After(time.Second * 5):
-		_log.Println("login timeout after 5 seconds")
+		log.Println("login timeout after 5 seconds")
 		return errors.New("login timeout after 5 seconds")
 	}
 }
@@ -299,7 +299,7 @@ func (hbdmWs *HbdmOrderWs) Login(apiKey, apiSecretKey, passphrase string) error 
 }
 
 func (hbdmWs *HbdmOrderWs) subscribe(sub map[string]interface{}) error {
-	_log.Println(sub)
+	log.Println(sub)
 	hbdmWs.connectWs()
 	err := hbdmWs.wsConn.SendJsonMessage(sub)
 	if err != nil {

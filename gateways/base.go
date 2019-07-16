@@ -8,7 +8,6 @@ type IGateway interface {
 	GetName() string
 	GetEngine() *EventEngine
 	Connect() error
-	SetConfig(config interface{}) error
 	CancelOrder(symbol string, orderID string)
 	GetCandles(symbol string, period, size int) ([]Bar, error)
 	PlaceOrder(symbol string, price, amount string, orderType OrderType, offset OrderOffset, leverRate int) (string, error)

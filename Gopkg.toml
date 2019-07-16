@@ -45,3 +45,15 @@
 [[constraint]]
   name = "github.com/op/go-logging"
   version = "1.0.0"
+
+[[constraint]]
+  name = "github.com/imdario/mergo"
+  version = "0.3.7"
+
+[[constraint]]
+  name = "github.com/spf13/viper"
+  version = "1.4.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/dearplain/goloader"

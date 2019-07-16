@@ -37,27 +37,27 @@ const (
 	OT_LIMIT     = goex.ORDER_TYPE_LIMIT
 	OT_MARKET    = goex.ORDER_TYPE_MARKET
 	OT_FAK       = goex.ORDER_TYPE_FAK
-	OT_IOC       = goex.ORDER_TYPE_IOC
+	OT_FOK       = goex.ORDER_TYPE_FOK
 	OT_POST_ONLY = goex.ORDER_TYPE_POST_ONLY
 )
 
 // OrderStatus
-type OrderStatus goex.TradeStatus
+type OrderStatus int
 
 const (
-	OS_SUBMITTED    = goex.ORDER_UNFINISH - 1
-	OS_UNFILLED     = goex.ORDER_UNFINISH
-	OS_PART_FILLED  = goex.ORDER_PART_FINISH
-	OS_FULLY_FILLED = goex.ORDER_FINISH
-	OS_CANCELED     = goex.ORDER_CANCEL
-	OS_REJECTED     = goex.ORDER_REJECT
-	OS_CANCELLING   = goex.ORDER_CANCEL_ING
+	OS_SUBMITTED = iota
+	OS_UNFILLED
+	OS_PART_FILLED
+	OS_FULLY_FILLED
+	OS_CANCELED
+	OS_REJECTED
+	OS_CANCELLING
 )
 
 var orderStatusSymbol = [...]string{"SUBMITTED", "UNFILLED", "PART_FILLED", "FULLY_FILLED", "CANCELED", "REJECT", "CANCELLING"}
 
 func (os OrderStatus) String() string {
-	i := os + 1
+	i := os
 	if i >= 0 && int(i) < len(orderStatusSymbol) {
 		return orderStatusSymbol[i]
 	}

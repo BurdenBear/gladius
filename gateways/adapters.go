@@ -28,7 +28,10 @@ func AdapterFutureOrder(contract IContract, order *goex.FutureOrder) (o *Order) 
 	o.AvgPrice = order.AvgPrice
 	o.DealAmount = order.DealAmount
 	o.UpdateTime = Int64ToTime(order.OrderTime)
-	o.Status = NewTradeStatusFromGoex(order.Status)
+	o.Status = NewOrderStatusFromGoex(order.Status)
+	if o.Status == OS_UNFILLED {
+		o.CreateTime = o.UpdateTime
+	}
 	o.Offset = NewOrderOffsetFromGoex(order.OType)
 	// TODO: o.Type =
 	o.LeverRate = order.LeverRate

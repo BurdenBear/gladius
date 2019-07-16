@@ -61,6 +61,6 @@ func NewOrderTypeFromGoex(obj interface{}) OrderType {
 	}
 }
 
-func NewTradeStatusFromGoex(ts goex.TradeStatus) OrderStatus {
-	return OrderStatus(ts)
+func NewOrderStatusFromGoex(ts goex.TradeStatus) OrderStatus {
+	return OrderStatus(int(ts) + 1)
 }
