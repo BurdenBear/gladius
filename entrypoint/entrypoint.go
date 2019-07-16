@@ -1,6 +1,7 @@
 package entrypoint
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -169,10 +170,27 @@ func GetStrategy(router *strategy.Router) []strategy.IStrategy {
 	return stgs
 }
 
+func GetLogConfig() {
+	c := NewLogConfig()
+	if viper.IsSet("log") {
+		logConfig := viper.Sub("log").AllSettings()
+		v, err := json.Marshal(logConfig)
+		if err != nil {
+			panic(err)
+		}
+		err = json.Unmarshal(v, c)
+		if err != nil {
+			panic(err)
+		}
+	}
+	InitLog(c)
+}
+
 func Run() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt, os.Kill, syscall.SIGINT, syscall.SIGTERM)
 	GetConfig()
+	GetLogConfig()
 	engine := NewEventEngine(100000)
 	gws := GetGateways(engine)
 	router := strategy.NewRouter(engine)
