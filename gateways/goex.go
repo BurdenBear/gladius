@@ -274,9 +274,11 @@ func (gateway *GoExGateway) handleOrder(order *Order) *Order {
 			}
 			mergeOrder(order, o) // do not override
 		} else {
-			if order.Status != OS_SUBMITTED {
-				return nil // order sent by other client
-			}
+			// new order submitted
+			if order.Status == OS_SUBMITTED {
+				gateway.unfinishedClOrders[order.ClOrdID] = order
+			} // else order sent by other client
+			return nil
 		}
 		if order.OrderID != "" {
 			if _, ok := gateway.orderID2ClOrdID[order.OrderID]; !ok {
@@ -329,10 +331,7 @@ func (gateway *GoExGateway) handleOrder(order *Order) *Order {
 		} else {
 			gateway.unfinishedClOrders[order.ClOrdID] = order
 		}
-		if order.OrderID != "" {
-			return order
-		}
-		return nil
+		return order
 	}
 	// without ClOrdID in raw data.
 	if gateway.finishedOrders.Contains(order.OrderID) {
