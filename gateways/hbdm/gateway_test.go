@@ -61,18 +61,17 @@ func TestHbdmGatewayOrder(t *testing.T) {
 	engine := NewEventEngine(100000)
 
 	symbols := []string{
-		GetCryptoCurrencyContractSymbol(goex.EOS_USD, goex.SWAP_CONTRACT),
 		GetCryptoCurrencyContractSymbol(goex.EOS_USD, goex.QUARTER_CONTRACT),
 	}
 	onces := map[string]*sync.Once{
 		symbols[0]: &sync.Once{},
-		symbols[1]: &sync.Once{},
 	}
 	config := *GetDefaultHbdmGatewayConfig() // copy
 	config.Symbols = symbols
+	config.HTTP.Proxy = "socks5://localhost:10808"
 	Hbdm, err := NewHbdmGateway("Hbdm", engine, &config)
 	assert.Nil(t, err)
-	wait := 6 // (SUBMITTED, UNFINISHED, CANCELLED) X 2 contract
+	wait := 1 // (SUBMITTED, UNFINISHED, CANCELLED) X 2 contract
 	ch := make(chan interface{}, wait)
 	engine.Register(EVENT_DEPTH, NewDepthEventHandler(
 		func(depth *Depth) {
@@ -84,7 +83,9 @@ func TestHbdmGatewayOrder(t *testing.T) {
 		}))
 	engine.Register(EVENT_ORDER, NewOrderEventHandler(
 		func(order *Order) {
-			ch <- nil
+			if order.IsFinished() {
+				ch <- nil
+			}
 			logger.Debugf("%v %v", order.Contract, order)
 		}))
 	engine.Start()

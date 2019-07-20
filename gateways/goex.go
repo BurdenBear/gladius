@@ -493,10 +493,12 @@ func (gateway *GoExGateway) doCancelOrder(symbol string, orderID string, clOrdID
 	currencyPair, contractType, err := ParseCryptoCurrencyContractSymbol(symbol)
 	if err != nil {
 		logger.Errorf("cancel Order{Symbol: %s, OrderID: %s, ClOrdID: %s} failed: %s", symbol, orderID, clOrdID, err)
+		return
 	}
 	_, err = gateway.futureRestAPI.FutureCancelOrder(currencyPair, contractType, orderID)
 	if err != nil {
 		logger.Errorf("cancel Order{Symbol: %s, OrderID: %s, ClOrdID: %s} failed: %s", symbol, orderID, clOrdID, err)
+		return
 	}
 	logger.Infof("cancel Order{Symbol: %s, OrderID: %s, ClOrdID: %s} sucessed", symbol, orderID, clOrdID)
 }

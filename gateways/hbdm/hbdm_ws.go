@@ -141,12 +141,14 @@ func (hbdmWs *HbdmOrderWs) handle(msg []byte) error {
 	msgStr := string(msg)
 	if strings.Contains(msgStr, "ping") {
 		var ping struct {
-			Ping int64
+			Op string `json:"op"`
+			Ts int64  `json:"ts"`
 		}
 		json.Unmarshal(msg, &ping)
 		pong := struct {
-			Pong int64 `json:"pong"`
-		}{ping.Ping}
+			Op string `json:"op"`
+			Ts int64  `json:"ts"`
+		}{Op: "pong", Ts: ping.Ts}
 
 		hbdmWs.wsConn.SendJsonMessage(pong)
 		hbdmWs.wsConn.UpdateActiveTime()
