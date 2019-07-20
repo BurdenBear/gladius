@@ -142,14 +142,14 @@ func (hbdmWs *HbdmOrderWs) handle(msg []byte) error {
 	if strings.Contains(msgStr, "ping") {
 		var ping struct {
 			Op string `json:"op"`
-			Ts int64  `json:"ts"`
+			Ts string `json:"ts"`
 		}
 		json.Unmarshal(msg, &ping)
 		pong := struct {
 			Op string `json:"op"`
-			Ts int64  `json:"ts"`
+			Ts string `json:"ts"`
 		}{Op: "pong", Ts: ping.Ts}
-
+		// log.Println("hbdm orderWs:", pong)
 		hbdmWs.wsConn.SendJsonMessage(pong)
 		hbdmWs.wsConn.UpdateActiveTime()
 		return nil
@@ -251,7 +251,7 @@ func (hbdmWs *HbdmOrderWs) login() error {
 	case opResp := <-hbdmWs.loginCh:
 		if r, ok := opResp.(OpResponse); ok {
 			if r.ErrCode == 0 {
-				log.Println("login success:", r)
+				log.Println("login success:", r, string(r.Data))
 				return nil
 			}
 		}
