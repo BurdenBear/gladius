@@ -173,9 +173,11 @@ func (adapter *BitmexAdapter) AdaptDepth(depths []BitmexDepth, size int) (*Depth
 			return nil, fmt.Errorf("can't adapt bitmex depths: %v", depths)
 		}
 	}
-	depth.AskList = depth.AskList[max(0, len(depth.AskList)-size):]
-	depth.BidList = depth.BidList[:size]
-	Reverse(depth.AskList)
+	l := len(depth.AskList)
+	if size > 0 && size < l {
+		depth.AskList = depth.AskList[l-size:]
+		depth.BidList = depth.BidList[:size]
+	}
 	return depth, nil
 }
 
@@ -254,8 +256,9 @@ func (adapter *BitmexAdapter) AdaptWsOrderBook(ob *bitmexOrderBook, size int) (*
 	if err != nil {
 		return nil, err
 	}
-	depth.AskList = make([]DepthRecord, len(ob.Asks))
-	depth.BidList = make([]DepthRecord, len(ob.Bids))
+	l := len(ob.Asks)
+	depth.AskList = make([]DepthRecord, l)
+	depth.BidList = make([]DepthRecord, l)
 	for i, v := range ob.Asks {
 		depth.AskList[i].Price = v[0]
 		depth.AskList[i].Amount = v[1]
@@ -264,10 +267,11 @@ func (adapter *BitmexAdapter) AdaptWsOrderBook(ob *bitmexOrderBook, size int) (*
 		depth.BidList[i].Price = v[0]
 		depth.BidList[i].Amount = v[1]
 	}
-	if size > 0 {
+	if size > 0 && size < l {
 		depth.AskList = depth.AskList[:size]
 		depth.BidList = depth.BidList[:size]
 	}
+	Reverse(depth.AskList)
 	return depth, nil
 }
 

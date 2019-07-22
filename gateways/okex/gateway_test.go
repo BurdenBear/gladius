@@ -12,6 +12,20 @@ import (
 
 var logger = GetLogger()
 
+func checkGatewayDepth(dep *Depth) bool {
+	for i := 0; i < len(dep.AskList)-1; i++ {
+		if dep.AskList[i+1].Price < dep.AskList[i].Price {
+			return false
+		}
+	}
+	for i := 0; i < len(dep.BidList)-1; i++ {
+		if dep.BidList[i+1].Price > dep.BidList[i].Price {
+			return false
+		}
+	}
+	return true
+}
+
 func TestOKExGatewayDepth(t *testing.T) {
 	engine := NewEventEngine(100000)
 
@@ -25,14 +39,17 @@ func TestOKExGatewayDepth(t *testing.T) {
 	config.Secret.APISecretKey = ""
 	config.Secret.Passphrase = ""
 	config.Symbols = symbols
+	config.Urls.Future.Restful = "https://www.okex.me"
+	config.Urls.Future.Websocket = "wss://okexcomreal.bafang.com:10442/ws/v3"
 	okex, err := NewOkexGateway("OKEX", engine, &config)
 	assert.Nil(t, err)
 	wait := 10
 	ch := make(chan interface{}, wait)
 	engine.Register(EVENT_DEPTH, NewDepthEventHandler(
 		func(depth *Depth) {
-			ch <- nil
 			t.Log(depth.Contract, depth.Time, depth.AskList, depth.BidList)
+			assert.True(t, checkGatewayDepth(depth))
+			ch <- nil
 		}))
 	engine.Start()
 	err = okex.Connect()
@@ -46,7 +63,7 @@ func TestOKExGatewayDepth(t *testing.T) {
 func placeAndCancel(t *testing.T, gateway *OkexGateway, dep *Depth) {
 	leverage := 20
 	depth := 5
-	price := fmt.Sprintf("%f", (*dep.BidList)[depth-1].Price)
+	price := fmt.Sprintf("%f", dep.BidList[depth-1].Price)
 	amount := "1"
 	symbol := dep.Contract.GetSymbol()
 	logger.Debugf("sending order of %s", symbol)

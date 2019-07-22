@@ -20,12 +20,12 @@ func TestHbdmWsTickerCallback(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	hbdmWs.TickerCallback(func(ticker *goex.FutureTicker) {
-		t.Log(ticker, ticker.Ticker)
-		if len(tickers) <= n {
+		if len(tickers) < n {
+			t.Log(ticker, ticker.Ticker)
 			tickers = append(tickers, *ticker)
-		}
-		if len(tickers) == n {
-			wg.Done()
+			if len(tickers) == n {
+				wg.Done()
+			}
 		}
 	})
 	hbdmWs.SubscribeTicker(goex.EOS_USD, goex.QUARTER_CONTRACT)
@@ -39,12 +39,13 @@ func TestHbdmWsDepthCallback(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	hbdmWs.DepthCallback(func(depth *goex.Depth) {
-		if len(depths) <= n {
-			t.Log(len(depth.AskList), depth)
+		if len(depths) < n {
+			t.Log(depth)
+			assert.True(t, checkDepth(depth))
 			depths = append(depths, *depth)
-		}
-		if len(depths) == n {
-			wg.Done()
+			if len(depths) == n {
+				wg.Done()
+			}
 		}
 	})
 	hbdmWs.SubscribeDepth(goex.EOS_USD, goex.QUARTER_CONTRACT, 5)
@@ -58,12 +59,12 @@ func TestHbdmWsTradeCallback(t *testing.T) {
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	hbdmWs.TradeCallback(func(trade *goex.Trade, contractType string) {
-		if len(trades) <= n {
+		if len(trades) < n {
 			t.Log(contractType, trade)
 			trades = append(trades, *trade)
-		}
-		if len(trades) == n {
-			wg.Done()
+			if len(trades) == n {
+				wg.Done()
+			}
 		}
 	})
 	hbdmWs.SubscribeTrade(goex.EOS_USD, goex.QUARTER_CONTRACT)
@@ -114,12 +115,12 @@ func TestHbdmWsOrderCallback(t *testing.T) {
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
 		hbdmWs.OrderCallback(func(order *goex.FutureOrder, contractType string) {
-			if len(orders) <= n {
+			if len(orders) < n {
 				t.Log(contractType, order)
 				orders = append(orders, *order)
-			}
-			if len(orders) == n {
-				wg.Done()
+				if len(orders) == n {
+					wg.Done()
+				}
 			}
 		})
 		err = hbdmWs.SubscribeOrder(goex.EOS_USD, goex.QUARTER_CONTRACT)

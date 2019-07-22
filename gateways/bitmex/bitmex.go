@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -782,14 +781,6 @@ func (bitmex *Bitmex) mergeKlineRecords(klines [][]*FutureKline) []FutureKline {
 	return ret
 }
 
-func _reverse(s interface{}) {
-	n := reflect.ValueOf(s).Len()
-	swap := reflect.Swapper(s)
-	for i, j := 0, n-1; i < j; i, j = i+1, j-1 {
-		swap(i, j)
-	}
-}
-
 // Okex等接口返回的都是kline的开始时间，此处需要统一转换，此函数求k线的时间戳偏移(seconds)
 func (bitmex *Bitmex) getKlineTimestampOffset(binSize string) int64 {
 	switch binSize {
@@ -869,7 +860,7 @@ func (bitmex *Bitmex) getKlineRecords(contractType string, currencyPair Currency
 		klineRecords = append(klineRecords, r)
 	}
 	if reverse {
-		_reverse(klineRecords)
+		Reverse(klineRecords)
 	}
 	return klineRecords, nil
 }
@@ -971,7 +962,7 @@ func (bitmex *Bitmex) GetKlineRecords(contractType string, currencyPair Currency
 				left -= count
 			}
 		}
-		_reverse(params)
+		Reverse(params)
 	}
 	lock := &sync.Mutex{}
 	klinesSlice := make([][]*FutureKline, len(params))

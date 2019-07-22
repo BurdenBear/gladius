@@ -10,6 +10,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func checkGatewayDepth(dep *Depth) bool {
+	for i := 0; i < len(dep.AskList)-1; i++ {
+		if dep.AskList[i+1].Price < dep.AskList[i].Price {
+			return false
+		}
+	}
+	for i := 0; i < len(dep.BidList)-1; i++ {
+		if dep.BidList[i+1].Price > dep.BidList[i].Price {
+			return false
+		}
+	}
+	return true
+}
+
 func TestBitmexGatewayDepth(t *testing.T) {
 	engine := NewEventEngine(100000)
 
@@ -31,8 +45,9 @@ func TestBitmexGatewayDepth(t *testing.T) {
 	ch := make(chan interface{}, wait)
 	engine.Register(EVENT_DEPTH, NewDepthEventHandler(
 		func(depth *Depth) {
-			ch <- nil
 			t.Log(depth.Contract, depth.Time, depth.AskList, depth.BidList)
+			assert.True(t, checkGatewayDepth(depth))
+			ch <- nil
 		}))
 	engine.Start()
 	err = Bitmex.Connect()
@@ -46,7 +61,7 @@ func TestBitmexGatewayDepth(t *testing.T) {
 func placeAndCancelFromGateway(t *testing.T, gateway *BitmexGateway, dep *Depth) {
 	leverage := 20
 	depth := 10
-	price := fmt.Sprintf("%f", (*dep.BidList)[depth-1].Price)
+	price := fmt.Sprintf("%f", dep.BidList[depth-1].Price)
 	amount := "1"
 	symbol := dep.Contract.GetSymbol()
 	logger.Debugf("sending order of %s", symbol)

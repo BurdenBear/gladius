@@ -1,6 +1,7 @@
 package gateways
 
 import (
+	"reflect"
 	"time"
 
 	. "github.com/BurdenBear/gladius"
@@ -56,11 +57,42 @@ func AdapterFutureKlines(contract IContract, klines []goex.FutureKline) (a []Bar
 	return bars
 }
 
+func Reverse(slice interface{}) {
+	s := reflect.ValueOf(slice)
+	// if s is a pointer of slice
+	if s.Kind() == reflect.Ptr {
+		s = s.Elem()
+	}
+	swp := reflect.Swapper(s.Interface())
+	for i, j := 0, s.Len()-1; i < j; i, j = i+1, j-1 {
+		swp(i, j)
+	}
+}
+
+func ensureDepthPriceOrder(depth goex.DepthRecords, asending bool) {
+	if len(depth) <= 1 {
+		return
+	}
+	asendingInData := true
+	for i := 0; i < len(depth)-1; i++ {
+		if depth[i].Price > depth[i+1].Price {
+			asendingInData = false
+			break
+		}
+	}
+	if asending != asendingInData {
+		Reverse(depth)
+	}
+}
+
 func AdapterDepth(contract IContract, depth *goex.Depth) (d *Depth) {
 	d = new(Depth)
 	d.Contract = contract
 	d.Time = depth.UTime
-	d.AskList = &depth.AskList
-	d.BidList = &depth.BidList
+	// TODO: can not modify depth.AskList or depth.BidList?
+	d.AskList = depth.AskList
+	ensureDepthPriceOrder(d.AskList, true)
+	d.BidList = depth.BidList
+	ensureDepthPriceOrder(d.BidList, false)
 	return
 }

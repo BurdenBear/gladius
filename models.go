@@ -47,6 +47,6 @@ func (order *Order) IsFinished() bool {
 type Depth struct {
 	Contract IContract
 	Time     time.Time
-	AskList  *goex.DepthRecords // Descending order
-	BidList  *goex.DepthRecords // Descending order
+	AskList  goex.DepthRecords // Price in ascending order
+	BidList  goex.DepthRecords // Price in descending order
 }

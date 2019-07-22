@@ -33,6 +33,7 @@ func TestBitmexWsDepthCallback(t *testing.T) {
 	bitmexWs.DepthCallback(func(depth *goex.Depth) {
 		if len(depths) < n {
 			t.Log(depth)
+			assert.True(t, checkDepth(depth))
 			depths = append(depths, *depth)
 			if len(depths) == n {
 				wg.Done()

@@ -33,6 +33,20 @@ func getBitmexConfig() *APIConfig {
 	return config
 }
 
+func checkDepth(dep *Depth) bool {
+	for i := 0; i < len(dep.AskList)-1; i++ {
+		if dep.AskList[i+1].Price > dep.AskList[i].Price {
+			return false
+		}
+	}
+	for i := 0; i < len(dep.BidList)-1; i++ {
+		if dep.BidList[i+1].Price > dep.BidList[i].Price {
+			return false
+		}
+	}
+	return true
+}
+
 func TestBitmex_GetFutureDepth(t *testing.T) {
 	size := 10
 	wg := &sync.WaitGroup{}
@@ -42,11 +56,13 @@ func TestBitmex_GetFutureDepth(t *testing.T) {
 		dep, err := bitmex.GetFutureDepth(BTC_USD, QUARTER_CONTRACT, size)
 		assert.Nil(t, err)
 		t.Log(dep)
+		assert.True(t, checkDepth(dep))
 	}()
 	go func() {
 		defer wg.Done()
 		dep, err := bitmex.GetFutureDepth(BTC_USD, SWAP_CONTRACT, size)
 		assert.Nil(t, err)
+		assert.True(t, checkDepth(dep))
 		t.Log(dep)
 	}()
 	wg.Wait()
