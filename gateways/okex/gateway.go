@@ -173,6 +173,10 @@ func (factory *OkexAPIFactory) GetFutureWs() (gateways.FutureWebsocket, error) {
 	apiSecretKey := factory.config.Secret.APISecretKey
 	passphrase := factory.config.Secret.Passphrase
 	factory.futureWs = newOKExV3FutureWs(factory.config.Urls.Future.Websocket, factory.futureRestAPI)
+	if factory.config.Heartbeat.Websocket > 0 {
+		t := time.Duration(factory.config.Heartbeat.Websocket) * time.Second
+		factory.futureWs.WsBuilder.Heartbeat([]byte("ping"), t)
+	}
 	if factory.futureAuthoried {
 		err := factory.futureWs.Login(apiKey, apiSecretKey, passphrase)
 		if err != nil {

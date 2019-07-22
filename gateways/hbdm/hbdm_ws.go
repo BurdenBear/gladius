@@ -119,7 +119,7 @@ func NewHbdmOrderWs() *HbdmOrderWs {
 	hbdmWs := &HbdmOrderWs{WsBuilder: goex.NewWsBuilder()}
 	hbdmWs.WsBuilder = hbdmWs.WsBuilder.
 		WsUrl("wss://api.hbdm.com/notification").
-		Heartbeat(nil, 8*time.Second).
+		Heartbeat(nil, 10*time.Second).
 		ErrorHandleFunc(func(err error) {
 			log.Printf("hbdm order ws internal error: %s\n", err.Error())
 		}).
@@ -400,7 +400,7 @@ type HbdmWs struct {
 func NewHbdmWs() *HbdmWs {
 	hbdmWs := &HbdmWs{}
 	hbdmWs.mdWs = huobi.NewHbdmWs()
-	hbdmWs.mdWs.WsBuilder = hbdmWs.mdWs.WsBuilder.Heartbeat(nil, 5*time.Second)
+	hbdmWs.mdWs.WsBuilder = hbdmWs.mdWs.WsBuilder.Heartbeat(nil, 10*time.Second)
 	hbdmWs.orderWs = NewHbdmOrderWs()
 	return hbdmWs
 }

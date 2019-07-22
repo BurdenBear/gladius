@@ -163,6 +163,10 @@ func (factory *BitmexAPIFactory) GetFutureWs() (gateways.FutureWebsocket, error)
 	apiSecretKey := factory.config.Secret.APISecretKey
 	passphrase := factory.config.Secret.Passphrase
 	factory.futureWs = NewBitmexWsWrapper()
+	if factory.config.Heartbeat.Websocket > 0 {
+		t := time.Duration(factory.config.Heartbeat.Websocket) * time.Second
+		factory.futureWs.WsBuilder.Heartbeat([]byte("ping"), t)
+	}
 	if factory.config.Urls.Future.Websocket != "" {
 		factory.futureWs.WsUrl(factory.config.Urls.Future.Websocket)
 	}

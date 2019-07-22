@@ -131,6 +131,11 @@ func (factory *HbdmAPIFactory) GetFutureWs() (gateways.FutureWebsocket, error) {
 	apiSecretKey := factory.config.Secret.APISecretKey
 	passphrase := factory.config.Secret.Passphrase
 	factory.futureWs = NewHbdmWsWrapper()
+	if factory.config.Heartbeat.Websocket > 0 {
+		t := time.Duration(factory.config.Heartbeat.Websocket) * time.Second
+		factory.futureWs.HbdmWs.mdWs.WsBuilder.Heartbeat(nil, t)
+		factory.futureWs.HbdmWs.orderWs.WsBuilder.Heartbeat(nil, t)
+	}
 	if factory.futureAuthoried {
 		err := factory.futureWs.Login(apiKey, apiSecretKey, passphrase)
 		if err != nil {

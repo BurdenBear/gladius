@@ -77,11 +77,16 @@ type GoExGatewayHTTPConfig struct {
 	Proxy   string `json:"proxy"`
 }
 
+type GoExGatewayHeartbeatConfig struct {
+	Websocket int `json:"websocket"`
+}
+
 type GoExGatewayConfig struct {
-	HTTP    GoExGatewayHTTPConfig `json:"http"`
-	Secret  GoExGatewaySecretConfig
-	Urls    GoExGatewayUrlsConfig
-	Symbols []string
+	HTTP      GoExGatewayHTTPConfig `json:"http"`
+	Secret    GoExGatewaySecretConfig
+	Urls      GoExGatewayUrlsConfig
+	Heartbeat GoExGatewayHeartbeatConfig
+	Symbols   []string
 }
 
 type GoExOrdCancelReq struct {
