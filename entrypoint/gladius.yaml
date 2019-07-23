@@ -1,0 +1,29 @@
+gateways:
+  gatewayA:
+    exchange: bitmex
+    http:
+      timeout: 10
+      proxy: socks5://localhost:10808
+    secret:
+      apiKey: iTmaFY90X6Bi8LoSTQipcVHD
+      apiSecretKey: _nFmKbmaLp1QXWkWmsNGjxLOOf8nIc1GZnNhyiGGxdSDwEDY
+    urls:
+      future:
+        restful: https://testnet.bitmex.com/api/v1
+        websocket: wss://testnet.bitmex.com/realtime
+    symbols:
+    - BTC_USD:SWAP
+strategies:
+  crossOkBitmex:
+    constructor: strategy.so:NewStrategy
+    symbols:
+    - GATEWAYA:BTC_USD:SWAP
+    vars:
+    - name:
+      values:
+log:
+  console:
+    level: DEBUG
+  # file:
+  #   path: strategy.log
+  #   level: DEBUG

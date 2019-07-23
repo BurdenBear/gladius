@@ -72,7 +72,7 @@ func (stg *Strategy) GetSymbols() []string {
 
 func (stg *Strategy) PlaceOrder(symbol string, price, size float64, orderType OrderType, offset OrderOffset, l int) (string, error) {
 	if stg.IsRunning() {
-		return stg.router.PlaceOrder(symbol, price, size, orderType, offset, l)
+		return stg.router.PlaceOrder(stg.GetName(), symbol, price, size, orderType, offset, l)
 	} else {
 		err := fmt.Errorf("strategy(%s) is not running, skip placeOrder of {%v %v %v %v %v %v}", stg.GetName(), symbol, price, size, orderType, offset, l)
 		logger.Warning(err.Error())

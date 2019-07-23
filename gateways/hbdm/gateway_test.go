@@ -101,7 +101,7 @@ func TestHbdmGatewayOrder(t *testing.T) {
 			if order.IsFinished() {
 				ch <- nil
 			}
-			logger.Debugf("%v %v", order.Contract, order)
+			logger.Debugf("%+v %+v", order.Contract, order)
 		}))
 	engine.Start()
 	err = Hbdm.Connect()

@@ -2,6 +2,7 @@ package strategy
 
 import (
 	"fmt"
+	"time"
 
 	. "github.com/BurdenBear/gladius"
 	"github.com/BurdenBear/gladius/gateways"
@@ -10,10 +11,21 @@ import (
 
 var logger = GetLogger()
 
+type orderCacheData struct {
+	Order     *Order
+	Timestamp time.Time
+}
+
+type orderStrategyInfo struct {
+	ClOrdID  string
+	Strategy string
+}
+
 type Router struct {
 	gateways          map[string]gateways.IGateway
 	strategies        map[string]IStrategy
 	orderStrategyMap  map[string]IStrategy
+	orderCache        map[string][]*orderCacheData
 	symbolStrategyMap map[string]mapset.Set
 	isRunning         bool
 	ch                chan interface{}
@@ -33,6 +45,7 @@ func NewRouter(engine *EventEngine) *Router {
 	router.gateways = make(map[string]gateways.IGateway)
 	router.strategies = make(map[string]IStrategy)
 	router.orderStrategyMap = make(map[string]IStrategy)
+	router.orderCache = make(map[string][]*orderCacheData)
 	router.symbolStrategyMap = make(map[string]mapset.Set)
 	router.ch = make(chan interface{}, engine.GetQueueSize())
 	router.Start()
@@ -64,6 +77,7 @@ func (router *Router) OnOrder(order *Order) {
 func (router *Router) Start() {
 	router.isRunning = true
 	go router.handle()
+	go router.startCleanOrderCache()
 }
 
 func (router *Router) Stop() {
@@ -86,6 +100,46 @@ func (router *Router) handle() {
 			router.handleDepth(data)
 		case *Order:
 			router.handleOrder(data)
+		case *orderStrategyInfo:
+			router.handleOrderStrategyInfo(data)
+		case time.Time:
+			router.cleanOrderCache(data)
+		}
+	}
+}
+
+func (router *Router) cleanOrderCache(t time.Time) {
+	for k, v := range router.orderCache {
+		if v == nil || len(v) == 0 {
+			delete(router.orderCache, k)
+			continue
+		}
+		if t.Sub(v[len(v)-1].Timestamp).Seconds() > 5*60 { // clear cached order after 5min
+			delete(router.orderCache, k)
+		}
+	}
+}
+
+func (router *Router) startCleanOrderCache() {
+	for router.IsRunning() {
+		router.ch <- time.Now().UTC()
+		time.Sleep(2 * time.Minute)
+	}
+}
+
+func (router *Router) handleOrderStrategyInfo(info *orderStrategyInfo) {
+	if strategy, ok := router.strategies[info.Strategy]; !ok {
+		logger.Infof("strategy %s send order %s but not found in router now", strategy, info.ClOrdID)
+	} else {
+		router.orderStrategyMap[info.ClOrdID] = strategy
+		//replay the cached order
+		if os, ok := router.orderCache[info.ClOrdID]; ok {
+			go func() {
+				for _, o := range os {
+					router.ch <- o // replay and keep the order
+				}
+			}() // do in other thread to prevent deadlock
+			delete(router.orderCache, info.ClOrdID)
 		}
 	}
 }
@@ -113,11 +167,17 @@ func (router *Router) handleGateway(gws []gateways.IGateway) {
 }
 
 func (router *Router) handleOrder(order *Order) {
-	if strategy, ok := router.orderStrategyMap[order.OrderID]; ok {
+	if strategy, ok := router.orderStrategyMap[order.ClOrdID]; ok {
 		strategy.OnOrder(order)
 		if order.IsFinished() {
-			delete(router.orderStrategyMap, order.OrderID)
+			delete(router.orderStrategyMap, order.ClOrdID)
 		}
+	} else {
+		cacheData := &orderCacheData{
+			Order:     order,
+			Timestamp: time.Now().UTC(),
+		}
+		router.orderCache[order.ClOrdID] = append(router.orderCache[order.ClOrdID], cacheData)
 	}
 }
 
@@ -136,7 +196,7 @@ func (router *Router) handleDepth(depth *Depth) {
 	}
 }
 
-func (router *Router) PlaceOrder(symbolID string, price, size float64, orderType OrderType, offset OrderOffset, l int) (string, error) {
+func (router *Router) PlaceOrder(strategy string, symbolID string, price, size float64, orderType OrderType, offset OrderOffset, l int) (string, error) {
 	fallback := ""
 	gatewayName, symbol, err := ParseContractID(symbolID)
 	if err != nil {
@@ -145,7 +205,16 @@ func (router *Router) PlaceOrder(symbolID string, price, size float64, orderType
 	if gateway, ok := router.gateways[gatewayName]; ok {
 		priceS := fmt.Sprintf("%f", price)
 		sizeS := fmt.Sprintf("%f", size)
-		return gateway.PlaceOrder(symbol, priceS, sizeS, orderType, offset, l)
+		clOrdID, err := gateway.PlaceOrder(symbol, priceS, sizeS, orderType, offset, l)
+		if err != nil {
+			logger.Errorf("Error when place order: %s", err)
+		} else {
+			info := &orderStrategyInfo{ClOrdID: clOrdID, Strategy: strategy}
+			go func() {
+				router.ch <- info
+			}() // do in other thread to prevent deadlock
+		}
+		return clOrdID, err
 	}
 	err = fmt.Errorf("Gateway(%s) in symbol(%s) is not found, place order failed", gatewayName, symbolID)
 	logger.Warningf(err.Error())

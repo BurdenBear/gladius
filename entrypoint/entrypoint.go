@@ -209,11 +209,11 @@ func Run() {
 	}
 	for _, stg := range stgs {
 		name := stg.GetName()
-		logger.Info("Strategy(%s) initialing...", name)
+		logger.Infof("Strategy(%s) initialing...", name)
 		stg.Init()
-		logger.Info("Strategy(%s) starting...", name)
+		logger.Infof("Strategy(%s) starting...", name)
 		stg.Start()
-		logger.Info("Strategy(%s) started", name)
+		logger.Infof("Strategy(%s) started", name)
 	}
 loop:
 	for {

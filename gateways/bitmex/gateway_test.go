@@ -91,8 +91,7 @@ func TestBitmexGatewayOrder(t *testing.T) {
 	config.HTTP.Proxy = "socks5://localhost:10808"
 	Bitmex, err := NewBitmexGateway("BITMEX", engine, &config)
 	assert.Nil(t, err)
-	// wait := 3
-	wait := 6 // (SUBMITTED, UNFINISHED, CANCELLED) X 2 contract
+	wait := 1
 	ch := make(chan interface{}, wait)
 	engine.Register(EVENT_DEPTH, NewDepthEventHandler(
 		func(depth *Depth) {
@@ -105,7 +104,9 @@ func TestBitmexGatewayOrder(t *testing.T) {
 	engine.Register(EVENT_ORDER, NewOrderEventHandler(
 		func(order *Order) {
 			logger.Debugf("%+v", order)
-			ch <- nil
+			if order.IsFinished() {
+				ch <- nil
+			}
 		}))
 	engine.Start()
 	err = Bitmex.Connect()
