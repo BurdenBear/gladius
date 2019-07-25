@@ -1,29 +1,43 @@
-gateways:
-  gatewayA:
-    exchange: bitmex
-    http:
+gateways: # Gateway设置
+  gatewayA: # GatewayName,会被统一大写处理
+    exchange: bitmex # exchange类型,如果不指定会尝试从GatewayName的前缀自动推断，比如GatewayName为okex，那么exchange就会被推断为okex
+    http: # http相关设定，可以设置超时及代理
       timeout: 10
       proxy: socks5://localhost:10808
-    secret:
+    secret: # 密钥相关设定
       apiKey: iTmaFY90X6Bi8LoSTQipcVHD
       apiSecretKey: _nFmKbmaLp1QXWkWmsNGjxLOOf8nIc1GZnNhyiGGxdSDwEDY
-    urls:
-      future:
-        restful: https://testnet.bitmex.com/api/v1
-        websocket: wss://testnet.bitmex.com/realtime
-    symbols:
-    - BTC_USD:SWAP
-strategies:
-  crossOkBitmex:
-    constructor: strategy.so:NewStrategy
-    symbols:
-    - GATEWAYA:BTC_USD:SWAP
-    vars:
-    - name:
-      values:
-log:
+      # passphrase: okexshabi # okex等交易所需要
+    urls: # 连接地址设定
+      future: # 期货
+        restful: https://testnet.bitmex.com/api/v1 # restful接口地址
+        websocket: wss://testnet.bitmex.com/realtime # websocket接口地址
+    symbols: # Gateway订阅的品种列表
+    - BTC_USD:SWAP # 填写合约的Symbol，Gateway会自动订阅对应合约的ticker数据
+  # gatewayB:
+  #   exchange: okex
+  #   http:
+  #     timeout: 10
+  #   secret:
+  #     apiKey:
+  #     apiSecretKey:
+  #     passphrase:
+  #   symbols:
+  #   - BTC_USD:THIS_WEEK
+strategies: # 策略设置(当前版本所有策略都跑在一个线程中，建议一个进程只运行一个策略)
+  crossOkBitmex: # 策略名字，需唯一，会被统一小写处理
+    constructor: strategy.so:NewStrategy # 指定策略.so文件，以及策略的构造函数
+    symbols: # Strategy订阅的品种列表
+    - GATEWAYA:BTC_USD:SWAP # 填写合约的ID (需要加GatewayName)
+    # - GATEWAYB:BTC_USD:THIS_WEEK
+    vars: # 变量注入(可以用来设置策略的一些参数)，symbols的设置会自动注入strategy.Symbols中
+    - name: #field名，确保首字母大写(只有公有属性才能从package外访问)
+      values: #注入值，确保和field的类型一致，否则注入可能失败
+log: # 日志设定
   console:
-    level: DEBUG
+    # enabled: true # 是否开启控制台日志，默认开启
+    level: DEBUG # 控制台日志级别
   # file:
-  #   path: strategy.log
-  #   level: DEBUG
+  #   enabled: true # 是否开启文件日志，默认关闭
+  #   path: gladius.log # 开启文件日志时必须指定，日志文件的位置
+  #   level: DEBUG # 文件日志级别

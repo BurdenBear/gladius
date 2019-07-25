@@ -8,9 +8,9 @@ import (
 )
 
 type IContract interface {
-	GetID() string
-	GetGateway() string
-	GetSymbol() string
+	GetID() string      //合约全局ID,如: "GATEWAYA:BTC_USD:SWAP"
+	GetGateway() string //合约gateway名,如: "GATEWAYA"
+	GetSymbol() string  //合约symbol,不包含gateway信息,如: "BTC_USD:SWAP"
 }
 
 type CryptoCurrencyContract struct {

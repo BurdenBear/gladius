@@ -23,17 +23,17 @@ type Bar struct {
 }
 
 type Order struct {
-	OrderID      string //请尽量用这个字段替代OrderID字段
-	ClOrdID      string //客户端自定义ID
-	Price        float64
-	Amount       float64
-	AvgPrice     float64
-	DealAmount   float64
-	CreateTime   time.Time
-	UpdateTime   time.Time
-	Status       OrderStatus
-	OrdRejReason string
-	Contract     IContract
+	OrderID      string      //订单交易所ID
+	ClOrdID      string      //客户端自定义ID
+	Price        float64     //订单价格
+	Amount       float64     //订单数量
+	AvgPrice     float64     //成交均价
+	DealAmount   float64     //成交数量
+	CreateTime   time.Time   //订单创建时间
+	UpdateTime   time.Time   //订单状态更新时间
+	Status       OrderStatus //订单状态
+	OrdRejReason string      //拒单原因
+	Contract     IContract   //订单合约
 	Offset       OrderOffset //1：开多 2：平多 3：开空 4： 平空
 	Type         OrderType   //1. 市价单 2. 限价单
 	LeverRate    int         //杠杆率，现货为1
