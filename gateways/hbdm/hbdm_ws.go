@@ -303,7 +303,7 @@ func (hbdmWs *HbdmOrderWs) Login(apiKey, apiSecretKey, passphrase string) error 
 func (hbdmWs *HbdmOrderWs) subscribe(sub map[string]interface{}) error {
 	log.Println(sub)
 	hbdmWs.connectWs()
-	err := hbdmWs.wsConn.SendJsonMessage(sub)
+	err := hbdmWs.wsConn.Subscribe(sub)
 	if err != nil {
 		return err
 	}
