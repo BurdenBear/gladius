@@ -7,8 +7,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/BurdenBear/gladius/gateways"
 
 	goex "github.com/nntaoli-project/GoEx"
 	"github.com/nntaoli-project/GoEx/huobi"
@@ -86,10 +89,54 @@ func (dm *HbdmRestAPI) GetFutureDepth(currencyPair goex.CurrencyPair, contractTy
 	return dm.Hbdm.GetFutureDepth(currencyPair, contractType, size)
 }
 
+func (dm *HbdmRestAPI) nomalizePrice(currencyPair goex.CurrencyPair, price string) (string, error) {
+	var tickSize string
+	if currencyPair == goex.BTC_USD {
+		tickSize = "0.01"
+	} else {
+		tickSize = "0.001"
+	}
+	p, err := strconv.ParseFloat(price, 64)
+	if err != nil {
+		return "", err
+	}
+	return gateways.NormalizeByIncrement(p, tickSize)
+}
+
+func (dm *HbdmRestAPI) nomalizeAmount(currencyPair goex.CurrencyPair, amount string) (string, error) {
+	lotSize := "1"
+	a, err := strconv.ParseFloat(amount, 64)
+	if err != nil {
+		return "", err
+	}
+	return gateways.NormalizeByIncrement(a, lotSize)
+}
+
+func (dm *HbdmRestAPI) PlaceFutureOrder(currencyPair goex.CurrencyPair, contractType, price, amount string, openType, matchPrice, leverRate int) (string, error) {
+	price, err := dm.nomalizePrice(currencyPair, price)
+	if err != nil {
+		return "", err
+	}
+	amount, err = dm.nomalizeAmount(currencyPair, amount)
+	if err != nil {
+		return "", err
+	}
+	return dm.Hbdm.PlaceFutureOrder(currencyPair, contractType, price, amount, openType, matchPrice, leverRate)
+}
+
 func (dm *HbdmRestAPI) PlaceFutureOrder2(currencyPair goex.CurrencyPair, contractType, price, amount string, orderType, openType, matchPrice, leverRate int) (string, error) {
 	var data struct {
 		OrderId  int64 `json:"order_id"`
 		COrderId int64 `json:"client_order_id"`
+	}
+
+	price, err := dm.nomalizePrice(currencyPair, price)
+	if err != nil {
+		return "", err
+	}
+	amount, err = dm.nomalizeAmount(currencyPair, amount)
+	if err != nil {
+		return "", err
 	}
 
 	params := &url.Values{}
@@ -116,7 +163,7 @@ func (dm *HbdmRestAPI) PlaceFutureOrder2(currencyPair goex.CurrencyPair, contrac
 	params.Add("offset", offset)
 	params.Add("direction", direction)
 
-	err := dm.doRequest(path, params, &data)
+	err = dm.doRequest(path, params, &data)
 
 	return fmt.Sprint(data.OrderId), err
 }
