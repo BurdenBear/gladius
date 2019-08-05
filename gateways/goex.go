@@ -188,6 +188,7 @@ func (gateway *GoExGateway) getUnfinishedOrderIDs(contract *CryptoCurrencyContra
 }
 
 func (gateway *GoExGateway) queryContractOrders(contract *CryptoCurrencyContract, orderIDs []string) {
+	logger.Debugf("query unfiniedOrders for %s of orderIDs: %v", contract.GetID(), orderIDs)
 	futureOrders, err := gateway.futureRestAPI.GetFutureOrders(orderIDs, contract.CurrencyPair, contract.ContractType)
 	if err != nil {
 		logger.Warningf("error when query order: %s", err)
